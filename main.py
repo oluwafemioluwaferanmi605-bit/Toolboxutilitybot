@@ -3,6 +3,7 @@ import secrets
 import string
 import os
 import sys
+import asyncio
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -109,8 +110,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# 4. Main Execution
-def main():
+# 4. Main Async Execution
+async def main():
     logger.info("🤖 Starting Toolbox Utility Bot...")
     
     if not TOKEN:
@@ -125,9 +126,21 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Start long polling mode
+    # Explicitly initialize, start, and block the application via the framework's async runner
     logger.info("🚀 Bot initialization complete. Active and polling Telegram servers...")
-    application.run_polling(drop_pending_updates=True)
+    
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        
+        # Keep running until standard termination
+        while True:
+            await asyncio.sleep(3600)
 
 if __name__ == '__main__':
-    main()
+    try:
+        # Securely launch loop initialization for Python 3.14 compatibility
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logger.info("👋 Bot stopped successfully.")
